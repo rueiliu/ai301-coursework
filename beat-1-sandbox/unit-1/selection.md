@@ -208,56 +208,23 @@ This is also the basis for the claim comment you write in Unit 2.
 
 **Selection rationale**
 
-**1. Fit to my interests and to the time available.**
+1. Fit to my interests and the time available
 
-My background is Python and SQL, but on the data-analysis side — pandas, notebooks, querying
-and reshaping datasets — and what I want from this course is engineering practice rather than
-more analysis. Issue #61 sits exactly on that line. The bug is that `api/routes/health.py`
-executes the literal string `"SELECT 1"`, and SQLAlchemy 2.x requires textual SQL to be wrapped
-in `sqlalchemy.text()`, so the probe raises `ArgumentError` and the health check reports the
-database as down even when it is reachable. The SQL half is familiar ground; the unfamiliar
-half — a FastAPI route, an ORM's API contract, a health-check endpoint — is the backend
-engineering I signed up to learn. It is also firmly not frontend, which I wanted to avoid.
+My background is mostly Python, SQL, pandas, and data analysis, so I wanted an issue that would give me more backend engineering experience. Issue #61 is a good fit. The bug is simple: api/routes/health.py runs "SELECT 1" directly, but SQLAlchemy 2.x requires it to be wrapped with text(). That makes the health check incorrectly report the database as down.
 
-On time: the fix is one call in one named file, and the issue gives me the exact error string
-to reproduce and confirm against. That is a small enough change that I can spend my time
-learning how the repo is set up and run rather than on the fix itself, which is what I want out
-of the first one.
+The SQL is familiar, but FastAPI routes, ORM behavior, and health checks are new to me. The fix is also small and clearly scoped, so I can spend more time learning the repo and setup instead of debugging a large change.
 
-**2. What the verdict identified correctly, and what I weighed that the rubric could not.**
+2. What the verdict got right, and what I considered myself
 
-The verdict got the things I built it to get. It confirmed the repo is alive on commit evidence
-(newest commit 2026-09-16, `archived: no`, human author), that the issue is genuinely free
-(`assignees: none`, no linked PRs, zero comments so no claim inside my 120-day window), that
-the scope is bounded (a terse bug report with reproduction steps and one named target file), and
-that nothing in the contribution policy bans AI-assisted work. It also correctly declined to
-hold the missing releases against the repo: `shipped-recently` failed, but as a `preferred`
-check it cannot sink a verdict, which is the behaviour I wanted after seeing an accept in the
-eval set with no releases at all.
+The verdict correctly confirmed that the repo is active, the issue is unclaimed, the scope is clear, and the contribution rules do not ban AI-assisted work. It also handled the lack of recent releases correctly because that check was only preferred, not required.
 
-What I weighed that the rubric could not: all three candidates were accepted, so the rubric
-told me nothing about which to take. Choosing between them was mine to do. I picked #61 over
-#72 and #53 because of what the fix teaches rather than anything the checks measure — #72 is
-password-hash error handling and #53 is regex work on phone numbers, both bounded and both
-fine, but neither puts me inside an ORM's session and query layer the way #61 does, and that
-layer is the part of backend work my analysis background has never touched. The rubric also
-cannot see that a health-check route is a good place to be a newcomer: if I break it, I break a
-diagnostic endpoint, not user-facing behaviour.
+Since all three candidates passed, I chose #61 based on what I would learn. #72 focuses on password-hash error handling and #53 on phone-number regex. Both are reasonable, but #61 gives me more exposure to ORM sessions and backend database code, which is an area I have less experience with. A health-check endpoint also feels like a relatively safe place for a first contribution.
 
-**3. Anticipated difficulty in claiming it.**
+3. Anticipated difficulty in claiming it
 
-Low on the social side, higher on the setup side. Path Review is a classroom and its house rule
-says classmates' claim comments do not block an issue, and course credit attaches to the pull
-request I open rather than to whether it merges — so even if someone else takes #61 too,
-nothing is lost. The issue currently has zero comments and no assignee, so I am not stepping on
-anyone as things stand.
+I expect claiming the issue to be easy. It currently has no assignee or comments, and the course rules allow multiple students to work on the same issue.
 
-The real difficulty I expect is reproduction, which is Unit 2's job. Reproducing this needs the
-stack running with a live database session, and my experience is with notebooks against
-existing databases rather than standing up a service locally. So I expect the setup — getting
-the app running and hitting `GET /health` — to cost me more than the one-line fix, and I would
-rather discover that on a small bug than a large one.
-
+The harder part will probably be reproducing the bug. I am used to working with existing databases in notebooks, not setting up a full service locally. Getting the app and database running and testing GET /health may take more time than the actual fix, which makes this a good small issue to start with.
 ---
 
 Related paths: `eval-run.txt` in this directory; your skill's files in
