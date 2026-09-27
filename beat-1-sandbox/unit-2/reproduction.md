@@ -23,16 +23,81 @@ rueiliu
 
 **Claim comment**
 
-[Link to the comment where you claimed the issue. Use the comment's own permalink, not the
-issue page on its own. **Then paste the text of that comment underneath the link** — the
-pasted text is what this field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s3/issues/61#issuecomment-5859830374
+
+Posted 2026-09-27 as `rueiliu`. The text of that comment:
+
+Claiming this one as my first contribution here.
+
+I'm set up against `2f4e82f` and I can see the call the issue points at — `api/routes/health.py` line 32 passes the bare string `"SELECT 1"` to `await db.execute(...)`. I'm putting together a reproduction now with my environment, exact steps, and the traceback, and I'll post that report here next.
+
+After the report I want to check whether wrapping the probe in `sqlalchemy.text()` is the whole fix or whether the same pattern shows up elsewhere in the health route before I open anything.
 
 **Reproduction comment**
 
-[Link to the comment where you posted your reproduction. It must record the environment
-(OS, relevant versions, code state), steps a stranger could follow, and what you observed.
-**Then paste the text of that comment underneath the link** — the pasted text is what this
-field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s3/issues/61#issuecomment-5859830937
+
+Posted 2026-09-27 as `rueiliu`. The text of that comment:
+
+Reproduced on `2f4e82f`. The database is up and answering queries, and `GET /health` still reports it as down.
+
+**Environment:** PathReview at `2f4e82f` (clean tree) · Python 3.11.11 · SQLAlchemy 2.1.1 · asyncpg 0.31.0 · FastAPI 0.141.1 · PostgreSQL 16 (`postgres:16-alpine`, the `db` service from `docker-compose.yml`) · macOS 27.0 arm64.
+
+**Steps, from a fresh clone:**
+
+```
+git checkout 2f4e82f && cp .env.example .env
+docker compose up -d db          # only the db service is needed
+python3 -m venv .venv && ./.venv/bin/pip install \
+  sqlalchemy asyncpg greenlet fastapi structlog 'pydantic[email]' pydantic-settings redis
+APP_ENV=production PYTHONPATH=. ./.venv/bin/python repro_61.py
+```
+
+`repro_61.py` — a control query through `text()`, the bare-string call line 32 makes, then the real handler:
+
+```python
+import asyncio
+from sqlalchemy import text
+from fastapi import HTTPException
+from core.database import AsyncSessionLocal
+from api.routes.health import health_check
+
+async def main():
+    async with AsyncSessionLocal() as s:                      # control: is the DB up?
+        print("[control]", (await s.execute(text("SELECT 1"))).scalar(), "<- DB answers")
+    async with AsyncSessionLocal() as s:
+        try:
+            await s.execute("SELECT 1")                       # health.py:32, verbatim
+        except Exception as e:
+            print("[failing]", f"{type(e).__name__}: {e}")
+    async with AsyncSessionLocal() as s:
+        try:
+            body = await health_check(db=s)
+        except HTTPException as e:
+            body, _ = e.detail, print("[symptom] GET /health ->", e.status_code)
+    print("[symptom] dependencies.postgres =", repr(body["dependencies"]["postgres"]))
+
+asyncio.run(main())
+```
+
+**Expected:** `dependencies.postgres` reads `"healthy"` and `/health` returns 200, because the database is reachable.
+**Actual:** the probe raises before it reaches the database, `postgres` reads `"unhealthy"`, and the route returns 503.
+
+```
+[control] 1 <- DB answers
+[failing] ArgumentError: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')
+2026-09-27 16:03:26 [error    ] postgres_health_check_failed   error="Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')"
+2026-09-27 16:03:26 [error    ] redis_health_check_failed      error="'Settings' object has no attribute 'redis_host'"
+2026-09-27 16:03:26 [debug    ] vector_db_health_check_passed
+[symptom] GET /health -> 503
+[symptom] dependencies.postgres = 'unhealthy'
+```
+
+The control line is the one I'd point at: the same session answers `SELECT 1` fine through `text()`, so the database is genuinely up and the `unhealthy` verdict comes from the coercion error.
+
+Two caveats, kept rather than trimmed: the `redis_health_check_failed` line is **not** this issue — `Settings` defines `redis_url`, not `redis_host`, so that probe raises regardless of whether Redis runs (looks like #62). And I invoked the handler directly rather than via `make run`, so it exercises the same `health_check()` and `get_db()` but not uvicorn or the HTTP layer; happy to confirm the 503 over real HTTP if useful.
+
+Next I'll check whether wrapping the probe in `text()` is the whole fix, or whether the same raw-string pattern appears elsewhere in the health route.
 
 ## Eval iterations
 
